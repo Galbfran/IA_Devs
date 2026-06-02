@@ -47,13 +47,13 @@ export type ModelProvider = "anthropic" | "openai";
 export interface AppConfig {
     provider: ModelProvider;
     anthropicApiKey: string;
-    openiaApikey: string;
+    openaiApiKey: string;
     anthropicModel: string;
-    openiaModel: string;
-    openiaEmbebbingModel: string;
+    openaiModel: string;
+    openaiEmbeddingModel: string;
     docsPath: string;
     dbPath: string;
-    rangTopK: string;
+    ragTopK: number;
 }
 
 export interface AgentResponse {
