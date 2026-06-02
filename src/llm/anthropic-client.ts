@@ -1,10 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
 import config from "../config.js";
+import { claudeClient } from "./claudeClient.js";
 
-const client = new Anthropic({apiKey: config.anthropicApiKey})
 
 export async function askClaude( prompt: string , systemPrompt?: string ): Promise<string>{
-    const response = await client.messages.create({
+    const response = await claudeClient.messages.create({
         model: config.anthropicModel,
         max_tokens: 1024,
         ...( systemPrompt && {system: systemPrompt}),
