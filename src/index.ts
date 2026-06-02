@@ -16,4 +16,4 @@ async function main(): Promise<void> {
 
 }
 
-main().catch((error: Error) => console.error(error));
+main().catch((error: Error) => console.error(error.message));
