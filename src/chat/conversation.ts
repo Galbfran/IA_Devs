@@ -1,5 +1,5 @@
 import config from "../config.js";
-import { claudeClient } from "../llm/claudeClient.js";
+import { claudeClient } from "../clients/claudeClient.js";
 import { Message } from "../types.js";
 
 const CHARS_PER_TOKEN = 4;
