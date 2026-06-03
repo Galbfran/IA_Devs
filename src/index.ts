@@ -9,7 +9,6 @@ import { startCLI } from "./chat/cli.js";
 //   console.log("✅ DevAssistant configurado correctamente");
 //   console.log("");
 
-
 // }
 
 startCLI().catch((error: Error) => console.error(error.message));
