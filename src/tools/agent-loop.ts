@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import config from "../config.js";
 import { TOOL_DEFINITIONS } from "./definitions.js";
 import { executeTool } from "./executor.js";
-import { claudeClient } from "../llm/claudeClient.js";
+import { claudeClient } from "../clients/claudeClient.js";
 import type { ToolDefinition } from "../types.js";
 
 const MAX_ITERATIONS = 10;

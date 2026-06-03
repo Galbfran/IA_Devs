@@ -1,5 +1,5 @@
 import config from "../config.js";
-import { claudeClient } from "./claudeClient.js";
+import { claudeClient } from "../clients/claudeClient.js";
 
 export async function streamClaude(
   prompt: string,
