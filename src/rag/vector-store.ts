@@ -1,5 +1,4 @@
-import Database from "better-sqlite3";
-import * as sqliteVec from "sqlite-vec";
+import { Database } from "bun:sqlite";
 import * as path from "path";
 import * as fs from "fs";
 import type { Chunk, SearchResult } from "../types.js";
@@ -11,28 +10,31 @@ interface ChunkRow {
   heading: string;
   position: number;
   char_count: number;
+  embedding: string;
 }
-interface SearchRow extends ChunkRow {
-  distance: number;
-}
-function serializeEmbedding(embedding: number[]): Buffer {
-  const float32 = new Float32Array(embedding);
-  return Buffer.from(float32.buffer);
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i]! * b[i]!;
+    normA += a[i]! * a[i]!;
+    normB += b[i]! * b[i]!;
+  }
+  normA = Math.sqrt(normA);
+  normB = Math.sqrt(normB);
+  return normA === 0 || normB === 0 ? 0 : dotProduct / (normA * normB);
 }
 
 export class VectorStore {
-  private db: Database.Database;
+  private db: Database;
   constructor(dbPath: string) {
     const dir = path.dirname(dbPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
     this.db = new Database(dbPath);
-    sqliteVec.load(this.db);
-
-    this.db.pragma("journal_mode = WAL");
-    this.db.pragma("synchronous = NORMAL");
-
     this.createTables();
   }
   private createTables(): void {
@@ -43,71 +45,63 @@ export class VectorStore {
         source TEXT NOT NULL,
         heading TEXT NOT NULL,
         position INTEGER NOT NULL,
-        char_count INTEGER NOT NULL
+        char_count INTEGER NOT NULL,
+        embedding TEXT NOT NULL
       )
-      `);
-
-    this.db.exec(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS chunk_embeddings USING vec0(
-        chunk_id TEXT PARTITION KEY,
-        embedding float[1536]
-      )
-      `);
+    `);
   }
   insert(chunk: Chunk, embedding: number[]): void {
-    const insertChunk = this.db.prepare(`
+    const query = this.db.prepare(`
       INSERT OR REPLACE INTO chunks
-      (id,content,source,heading,position,char_count)
-      VALUES(?,?,?,?,?,?)
-      `);
-    insertChunk.run(
+      (id, content, source, heading, position, char_count, embedding)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    query.run(
       chunk.id,
       chunk.content,
       chunk.metadata.source,
       chunk.metadata.heading,
       chunk.metadata.position,
       chunk.metadata.charCount,
+      JSON.stringify(embedding),
     );
-
-    const insertEmbedding = this.db.prepare(
-      `
-      INSERT OR REPLACE INTO chunk_embeddings
-      (chunk_id,embedding)
-      VALUES(?,?)
-      `,
-    );
-    insertEmbedding.run(chunk.id, serializeEmbedding(embedding));
   }
   search(queryEmbedding: number[], topk: number): SearchResult[] {
     const stmt = this.db.prepare(`
-      SELECT c.id, c.content, c.source, c.heading, c.position, c.char_count, e.distance
-      FROM chunk_embeddings e
-      JOIN chunks c ON c.id = e.chunk_id
-      WHERE e.embedding MATCH ?
-      AND k = ?
-      ORDER BY e.distance
-      `);
-    const rows = stmt.all(
-      serializeEmbedding(queryEmbedding),
-      topk,
-    ) as SearchRow[];
-    return rows.map((row) => ({
-      chunk: {
-        id: row.id,
-        content: row.content,
-        metadata: {
-          source: row.source,
-          heading: row.heading,
-          position: row.position,
-          charCount: row.char_count,
+      SELECT id, content, source, heading, position, char_count, embedding
+      FROM chunks
+    `);
+    const rows = stmt.all() as ChunkRow[];
+
+    const results = rows.map((row) => {
+      const storedEmbedding = JSON.parse(row.embedding) as number[];
+      const similarity = cosineSimilarity(queryEmbedding, storedEmbedding);
+      return {
+        row,
+        similarity,
+      };
+    });
+
+    return results
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, topk)
+      .map(({ row, similarity }) => ({
+        chunk: {
+          id: row.id,
+          content: row.content,
+          metadata: {
+            source: row.source,
+            heading: row.heading,
+            position: row.position,
+            charCount: row.char_count,
+          },
         },
-      },
-      score: 1 - row.distance / 2,
-    }));
+        score: similarity,
+      }));
   }
   clear(): void {
-    this.db.exec("DELETE FROM chunk_embeddings");
-    this.db.exec("DELETE FROM chunks");
+    const stmt = this.db.prepare("DELETE FROM chunks");
+    stmt.run();
   }
   get size(): number {
     const row = this.db

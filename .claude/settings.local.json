@@ -3,7 +3,8 @@
     "allow": [
       "Bash(mkdir -p /Users/galbiatifranco/Desktop/IA_devs/dev-assistant/src)",
       "Bash(cp /Users/galbiatifranco/Desktop/IA_devs/dev-assistant/index.ts /Users/galbiatifranco/Desktop/IA_devs/dev-assistant/src/index.ts)",
-      "Bash(claude config *)"
+      "Bash(claude config *)",
+      "Bash(bun *)"
     ]
   }
 }

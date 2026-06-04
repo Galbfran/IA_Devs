@@ -32,7 +32,7 @@ export const config: AppConfig = {
     "OPENAI_EMBEDDING_MODEL",
     "text-embedding-3-small",
   ),
-  docsPath: getRequiredEnvVar("DOCS_PATH", "./docs/sample-project"),
+  docsPath: getRequiredEnvVar("DOCS_PATH", "./src/docs/sample-project"),
   dbPath: getRequiredEnvVar("DB_PATH", "./data/vectors.db"),
   ragTopK: parseInt(getRequiredEnvVar("RAG_TOP_K", "5"), 10),
 };
