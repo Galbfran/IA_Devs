@@ -1,6 +1,4 @@
 import * as readline from "readline";
-import { Conversation } from "./conversation.js";
-import { DOCUMENTATION_ASSISTANT_PROMPT } from "../llm/prompts.js";
 import { TOOL_DEFINITIONS } from "../tools/definitions.js";
 import { processDirectory } from "../rag/chunker.js";
 import { generateEmbeddings } from "../clients/embeddingClient.js";
@@ -8,6 +6,7 @@ import { VectorStore } from "../rag/vector-store.js";
 import config from "../config.js";
 import { resetStore, retrieveContext } from "../rag/retriever.js";
 import { askWithRAG } from "../rag/rag-chan.js";
+import { DevAssistantAgent } from "../agent/agent.js";
 
 async function ingestDocs(docsPath: string): Promise<void> {
   console.log(`\nIniciando ingestión desde: ${docsPath}`);
@@ -44,15 +43,16 @@ export async function startCLI(): Promise<void> {
     input: process.stdin,
     output: process.stdout,
   });
-  const conversation = new Conversation(DOCUMENTATION_ASSISTANT_PROMPT);
+  const devAssistantAgent = new DevAssistantAgent();
   console.log("╔════════════════════════════════════════╗");
-  console.log("║         DevAssistant v0.3              ║");
-  console.log("║   Asistente de Documentación RAG       ║");
+  console.log("║         DevAssistant v1.0              ║");
+  console.log("║    Agente de Documentación y Código    ║");
   console.log("╚════════════════════════════════════════╝");
   console.log("");
   console.log("💬 Escribe tu pregunta y presiona Enter.");
   console.log("💡 Tip: usa /ingest para cargar documentación");
-  console.log("   Comandos: /ingest [path], /clear, /stats, /tools, /exit");
+  console.log("   Comandos: /ingest [path],");
+  console.log("             /clear, /stats, /tools, /exit");
   console.log("");
 
   const promptUser = (): void => {
@@ -63,19 +63,17 @@ export async function startCLI(): Promise<void> {
         return;
       }
       if (userInput === "/stats") {
-        const stats = conversation.getStats();
+        const stats = devAssistantAgent.getStats();
         console.log(`\n📊 Estadísticas de la conversación:`);
         console.log(`   • Turnos: ${stats.turns}`);
         console.log(`   • Tokens de entrada acumulados: ${stats.inputTokens}`);
         console.log(`   • Tokens de salida acumulados: ${stats.outputTokens}`);
-        console.log(
-          `   • Tokens estimados en contexto actual: ${conversation.estimateCurrentTokens()}\n`,
-        );
+
         promptUser();
         return;
       }
       if (userInput === "/exit" || userInput === "/salida") {
-        const stats = conversation.getStats();
+        const stats = devAssistantAgent.getStats();
         console.log(
           ` Resumen: ${stats.turns} turnos ` +
             `${stats.inputTokens} tokens de entrada ` +
@@ -85,7 +83,7 @@ export async function startCLI(): Promise<void> {
         return;
       }
       if (userInput === "/clear" || userInput === "/limpiar") {
-        conversation.clear();
+        devAssistantAgent.clearHistory();
         promptUser();
         return;
       }
@@ -117,7 +115,7 @@ export async function startCLI(): Promise<void> {
         return;
       }
       try {
-        conversation.addUserMessage(userInput);
+        devAssistantAgent.chat(userInput);
         const chunks = await retrieveContext(userInput);
         if (chunks.length == 0) {
           const message =
@@ -129,7 +127,7 @@ export async function startCLI(): Promise<void> {
           process.stdout.write(outputChunk);
         });
         process.stdout.write(`\nClaude: ${response}\n\n`);
-        conversation.addAssistantMessage(response);
+        devAssistantAgent.chat(response);
       } catch (error) {
         const err = error as Error;
         console.error(` Error: ${err.message}`);
