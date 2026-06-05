@@ -31,3 +31,15 @@ export class RateLimiter {
     return Math.max(0, this.config.maxRequests - active);
   }
 }
+
+export function sanitizeInput(input: string): string {
+  const MAX_LENGTH = 8_000;
+  let result = input
+    .replace(/\0/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[\x00-\x1F\x7F]/g, "");
+  if (result.length > MAX_LENGTH) {
+    result = result.slice(0, MAX_LENGTH) + "\n El texto supera las 8.000 lines";
+  }
+  return result;
+}
