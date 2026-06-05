@@ -25,3 +25,26 @@ export async function streamClaude(
   process.stdout.write(fullResult);
   return fullResult;
 }
+
+export async function streamClaudeWithCallback(
+  prompt: string,
+  onChunk: (textChunk: string) => void,
+  systemPrompt?: string,
+): Promise<string> {
+  let fullResponse = "";
+
+  const responseStream = claudeClient.messages.stream({
+    model: config.anthropicModel,
+    max_tokens: 1024,
+    ...(systemPrompt && { system: systemPrompt }),
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  responseStream.on("text", (textChunk) => {
+    onChunk(textChunk);
+    fullResponse += textChunk;
+  });
+
+  await responseStream.finalMessage();
+  return fullResponse;
+}
